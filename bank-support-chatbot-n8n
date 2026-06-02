@@ -3,22 +3,26 @@
   "nodes": [
     {
       "parameters": {
-        "httpMethod": "POST",
-        "path": "bank-support-chat-v2",
-        "responseMode": "responseNode",
-        "options": {
-          "allowedOrigins": "*"
-        }
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
       },
-      "id": "66b2f6fd-648d-4088-8000-88569b2e74b2",
-      "name": "Inbound Chat Webhook V2",
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2.1,
+      "id": "ac6dcc66-8451-467d-8bc8-660ab6e340ab",
+      "name": "Telegram Chat Trigger V2",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.3,
       "position": [
         224,
-        304
+        80
       ],
-      "webhookId": "361cb46b-eced-4036-b972-edc8ffe409f4"
+      "webhookId": "40343099-2a6d-40f0-a90f-b13f128ac1ce",
+      "credentials": {
+        "telegramApi": {
+          "id": "Bb0Xmmg7BvOgynts",
+          "name": "Telegram account"
+        }
+      }
     },
     {
       "parameters": {
@@ -27,43 +31,43 @@
             {
               "id": "session-id",
               "name": "sessionId",
-              "value": "={{ $json.body?.sessionId ?? $json.sessionId ?? $execution.id }}",
+              "value": "={{ \"telegram_\" + ($json.message?.chat?.id ?? $execution.id) + \"_\" + ($json.message?.from?.id ?? \"user\") }}",
               "type": "string"
             },
             {
               "id": "customer-name",
               "name": "customerName",
-              "value": "={{ $json.body?.customerName ?? $json.customerName ?? \"Customer\" }}",
+              "value": "={{ (($json.message?.from?.first_name ?? \"\") + \" \" + ($json.message?.from?.last_name ?? \"\")).trim() || $json.message?.from?.username || \"Telegram Customer\" }}",
               "type": "string"
             },
             {
               "id": "customer-email",
               "name": "customerEmail",
-              "value": "={{ $json.body?.customerEmail ?? $json.customerEmail ?? \"\" }}",
+              "value": "",
               "type": "string"
             },
             {
               "id": "channel",
               "name": "channel",
-              "value": "={{ $json.body?.channel ?? $json.channel ?? \"web\" }}",
+              "value": "telegram",
               "type": "string"
             },
             {
               "id": "message",
               "name": "message",
-              "value": "={{ $json.body?.message ?? $json.message ?? \"\" }}",
+              "value": "={{ $json.message?.text ?? \"\" }}",
               "type": "string"
             },
             {
               "id": "telegram-chat-id",
               "name": "telegramChatId",
-              "value": "={{ $json.body?.telegramChatId ?? $json.telegramChatId ?? \"\" }}",
+              "value": "={{ $json.message?.chat?.id ?? \"\" }}",
               "type": "string"
             },
             {
               "id": "telegram-message-id",
               "name": "telegramMessageId",
-              "value": "={{ $json.body?.telegramMessageId ?? $json.telegramMessageId ?? \"\" }}",
+              "value": "={{ $json.message?.message_id ?? \"\" }}",
               "type": "string"
             },
             {
@@ -77,21 +81,21 @@
         "includeOtherFields": true,
         "options": {}
       },
-      "id": "eedad6f8-0ac6-4975-aae5-f7d45a0eedb3",
-      "name": "Normalize Chat Input",
+      "id": "1504b4ba-d6b5-4ca4-98d2-8d0260ded22d",
+      "name": "Normalize Telegram Input",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
         512,
-        304
+        80
       ]
     },
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "const data = $json;\nconst original = String(data.message || '');\nlet sanitized = original;\nconst findings = new Set();\nconst bs = String.fromCharCode(92);\nconst word = bs + 'b';\nconst sp = bs + 's';\nconst mmZero = String.fromCharCode(0x1040);\nconst mmNine = String.fromCharCode(0x1049);\nconst digit = '[0-9' + mmZero + '-' + mmNine + ']';\nconst digits = digit + '{4,8}';\nconst nonDigit40 = '[^0-9' + mmZero + '-' + mmNine + bs + 'r' + bs + 'n]{0,40}';\nconst nonDigit30 = '[^0-9' + mmZero + '-' + mmNine + bs + 'r' + bs + 'n]{0,30}';\nfunction redact(type, pattern, replacement) { if (pattern.test(sanitized)) { findings.add(type); sanitized = sanitized.replace(pattern, replacement); } }\nredact('otp', new RegExp(word + '(otp|one[-' + sp + ']?time password|verification code|အိုတီပီ|OTP)' + word + nonDigit40 + digits, 'giu'), '$1 [REDACTED_OTP]');\nredact('otp', new RegExp('(ကုဒ်|အတည်ပြုကုဒ်|လုံခြုံရေးကုဒ်)' + nonDigit40 + digits, 'giu'), '$1 [REDACTED_OTP]');\nredact('pin', new RegExp(word + '(pin|PIN|ပင်)' + word + nonDigit30 + digits, 'giu'), '$1 [REDACTED_PIN]');\nredact('password', new RegExp(word + '(password|passcode|စကားဝှက်)' + word + sp + '*(is|:|=|က|မှာ|သည်)?' + sp + '*[^' + sp + ',.;]+', 'giu'), '$1 [REDACTED_PASSWORD]');\nredact('security_code', new RegExp(word + '(cvv|cvc|security code|card security code|လုံခြုံရေးကုဒ်)' + word + nonDigit30 + digit + '{3,4}', 'giu'), '$1 [REDACTED_SECURITY_CODE]');\nredact('full_card_number', new RegExp(word + '(?:' + bs + 'd[ -]?){13,19}' + word, 'g'), '[REDACTED_POSSIBLE_CARD_OR_ACCOUNT_NUMBER]');\nredact('account_number', new RegExp(word + '(account|acct|အကောင့်)' + sp + '*(number|no|#|နံပါတ်)?' + sp + '*(is|:|=|က|မှာ|သည်)?' + sp + '*' + bs + 'd{6,18}', 'giu'), '$1 number [REDACTED_ACCOUNT_NUMBER]');\nconst secretTypes = Array.from(findings);\nconst containsSecret = secretTypes.length > 0;\nlet preAiRiskHint = 'none';\nif (containsSecret) preAiRiskHint = 'secret_shared';\nelse if (/fraud|unauthorized|stolen|lost card|lost debit|lost credit|scam|phishing|လိမ်|မသိဘဲ|ပျောက်|ကတ်ပျောက်/iu.test(original)) preAiRiskHint = 'urgent_sensitive';\nreturn { json: { ...data, originalMessage: original, sanitizedMessage: sanitized, containsSecret, secretTypes: secretTypes.join(','), preAiRiskHint, responseLanguage: 'my-MM' } };"
+        "jsCode": "const data = $json;\nconst original = String(data.message || '');\nlet sanitized = original;\nconst findings = new Set();\nconst bs = String.fromCharCode(92);\nconst word = bs + 'b';\nconst sp = bs + 's';\nconst mmZero = String.fromCharCode(0x1040);\nconst mmNine = String.fromCharCode(0x1049);\nconst digit = '[0-9' + mmZero + '-' + mmNine + ']';\nconst digits = digit + '{4,8}';\nconst nonDigit40 = '[^0-9' + mmZero + '-' + mmNine + bs + 'r' + bs + 'n]{0,40}';\nconst nonDigit30 = '[^0-9' + mmZero + '-' + mmNine + bs + 'r' + bs + 'n]{0,30}';\nfunction redact(type, pattern, replacement) {\n  if (pattern.test(sanitized)) {\n    findings.add(type);\n    sanitized = sanitized.replace(pattern, replacement);\n  }\n}\nconst myanmarChars = (original.match(/[က-႟]/g) || []).length;\nconst latinChars = (original.match(/[A-Za-z]/g) || []).length;\nconst responseLanguage = myanmarChars > 0 && myanmarChars >= Math.max(1, latinChars / 2) ? 'my-MM' : 'en-US';\nconst responseLanguageName = responseLanguage === 'my-MM' ? 'Myanmar Burmese, Unicode, my-MM' : 'English, en-US';\nredact('otp', new RegExp(word + '(otp|one[-' + sp + ']?time password|verification code|အိုတီပီ|OTP)' + word + nonDigit40 + digits, 'giu'), '$1 [REDACTED_OTP]');\nredact('otp', new RegExp('(ကုဒ်|အတည်ပြုကုဒ်|လုံခြုံရေးကုဒ်)' + nonDigit40 + digits, 'giu'), '$1 [REDACTED_OTP]');\nredact('pin', new RegExp(word + '(pin|PIN|ပင်)' + word + nonDigit30 + digits, 'giu'), '$1 [REDACTED_PIN]');\nredact('password', new RegExp(word + '(password|passcode|စကားဝှက်)' + word + sp + '*(is|:|=|က|မှာ|သည်)?' + sp + '*[^' + sp + ',.;]+', 'giu'), '$1 [REDACTED_PASSWORD]');\nredact('security_code', new RegExp(word + '(cvv|cvc|security code|card security code|လုံခြုံရေးကုဒ်)' + word + nonDigit30 + digit + '{3,4}', 'giu'), '$1 [REDACTED_SECURITY_CODE]');\nredact('full_card_number', new RegExp(word + '(?:' + bs + 'd[ -]?){13,19}' + word, 'g'), '[REDACTED_POSSIBLE_CARD_OR_ACCOUNT_NUMBER]');\nredact('account_number', new RegExp(word + '(account|acct|အကောင့်)' + sp + '*(number|no|#|နံပါတ်)?' + sp + '*(is|:|=|က|မှာ|သည်)?' + sp + '*' + bs + 'd{6,18}', 'giu'), '$1 number [REDACTED_ACCOUNT_NUMBER]');\nconst secretTypes = Array.from(findings);\nconst containsSecret = secretTypes.length > 0;\nlet preAiRiskHint = 'none';\nif (containsSecret) preAiRiskHint = 'secret_shared';\nelse if (/fraud|unauthorized|stolen|lost card|lost debit|lost credit|scam|phishing|လိမ်|မသိဘဲ|ပျောက်|ကတ်ပျောက်/iu.test(original)) preAiRiskHint = 'urgent_sensitive';\nreturn { json: { ...data, originalMessage: original, sanitizedMessage: sanitized, containsSecret, secretTypes: secretTypes.join(','), preAiRiskHint, responseLanguage, responseLanguageName } };"
       },
-      "id": "32856786-adf3-4bbc-aead-febd29069af1",
+      "id": "289bdbe6-a615-4b91-8d78-61d078361b08",
       "name": "Detect and Redact Secrets",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -103,13 +107,13 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=Customer name: {{ $json.customerName }}\nCustomer email: {{ $json.customerEmail }}\nSession ID: {{ $json.sessionId }}\nChannel: {{ $json.channel }}\nResponse language: Myanmar Burmese, Unicode, my-MM\nPre-AI risk hint: {{ $json.preAiRiskHint }}\nContains secret: {{ $json.containsSecret }}\nSecret types: {{ $json.secretTypes }}\nSanitized customer message: {{ $json.sanitizedMessage }}",
+        "text": "=Customer name: {{ $json.customerName }}\nCustomer email: {{ $json.customerEmail }}\nSession ID: {{ $json.sessionId }}\nChannel: {{ $json.channel }}\nResponse language: {{ $json.responseLanguageName }}\nPre-AI risk hint: {{ $json.preAiRiskHint }}\nContains secret: {{ $json.containsSecret }}\nSecret types: {{ $json.secretTypes }}\nSanitized customer message: {{ $json.sanitizedMessage }}",
         "options": {
-          "systemMessage": "You are a Myanmar-language customer support triage assistant for a bank. You may use memory only for non-sensitive conversational continuity, such as prior topic or language preference. Never store, repeat, or rely on OTPs, PINs, passwords, full card numbers, CVV/security codes, account balances, transactions, or identity details from memory. Return only valid compact JSON if possible, with keys: intent, riskLevel, priority, requiresHuman, customerFacingReply, recommendedAction, summary, confidence. If JSON is difficult, return only the Burmese customer-facing reply and no extra commentary. All customerFacingReply text MUST be Burmese/Myanmar Unicode. Match this training-answer style: concise, direct, policy-like, not chatty, not promotional. Prefer sentence endings like “ပါသည်။”, “ရပါမည်။”, “မရပါ။”, “ဖြစ်ပါသည်။”. Keep customer-facing replies to 1 to 3 short sentences unless a safety issue requires one extra sentence. Never request, process, repeat, or expose account numbers, passwords, OTPs, PINs, full card numbers, CVV/security codes, balances, transactions, or identity documents. If Contains secret is true, warn the customer not to share OTP, PIN, password, full card number, or security code in chat. Never claim that you froze a card, moved money, opened an account, changed credentials, verified identity, or accessed customer records.",
+          "systemMessage": "You are a bilingual customer support triage assistant for a bank. Decide whether the customer's question is English or Myanmar/Burmese from the provided Response language field, and reply in exactly that language only. You may use memory only for non-sensitive conversational continuity, such as prior topic or language preference. Never store, repeat, or rely on OTPs, PINs, passwords, full card numbers, CVV/security codes, account balances, transactions, or identity details from memory.\n\nReturn only valid compact JSON if possible, with keys: intent, riskLevel, priority, requiresHuman, customerFacingReply, recommendedAction, summary, confidence. If JSON is difficult, return only the customer-facing reply and no extra commentary.\n\nFor English replies, match the English training style: concise, direct, policy-like, not chatty, not promotional. Use 1 to 2 short sentences unless a safety issue requires one extra sentence. Example style: \"If Without Leave is taken consecutively on Friday and the following Monday, salary will also be deducted for the intervening Saturday and Sunday.\"\n\nFor Myanmar replies, match the Burmese training style: concise, direct, policy-like, not chatty, not promotional. Prefer endings like “ပါသည်။”, “ရပါမည်။”, “မရပါ။”, “ဖြစ်ပါသည်။”. Keep replies to 1 to 3 short sentences unless a safety issue requires one extra sentence.\n\nNever request, process, repeat, or expose account numbers, passwords, OTPs, PINs, full card numbers, CVV/security codes, balances, transactions, or identity documents. If Contains secret is true, warn the customer not to share OTP, PIN, password, full card number, or security code in chat. Never claim that you froze a card, moved money, opened an account, changed credentials, verified identity, or accessed customer records.",
           "maxIterations": 3
         }
       },
-      "id": "c77ce895-997a-4026-88c7-b1649a0ad311",
+      "id": "ce56280a-778e-43c1-8b6c-749f28a9bfd9",
       "name": "Classify Risk and Draft Reply",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
@@ -128,7 +132,7 @@
           "topP": 1
         }
       },
-      "id": "d8f3f9f0-a7fd-414f-80b9-9764ebde3c85",
+      "id": "82ca6368-f9a3-41fa-8692-0fa306102088",
       "name": "Google Gemini Chat Model",
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1.1,
@@ -148,7 +152,7 @@
         "sessionIdType": "customKey",
         "sessionKey": "={{ $json.sessionId }}"
       },
-      "id": "80cdd535-d410-4d40-9148-9d985ad26b6d",
+      "id": "2840c4ef-6965-483c-bf65-5a643c1fb533",
       "name": "Simple Chat Memory V2",
       "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
       "typeVersion": 1.4,
@@ -160,9 +164,9 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "const raw = $json.output;\nlet ai = {};\nif (raw && typeof raw === 'object') ai = raw;\nif (typeof raw === 'string') {\n  const trimmed = raw.trim();\n  const fence = String.fromCharCode(96, 96, 96);\n  let clean = trimmed;\n  if (clean.toLowerCase().startsWith(fence + 'json')) clean = clean.slice(7);\n  else if (clean.startsWith(fence)) clean = clean.slice(3);\n  if (clean.endsWith(fence)) clean = clean.slice(0, -3);\n  try { ai = JSON.parse(clean.trim()); } catch { ai = { customerFacingReply: trimmed }; }\n}\nconst redaction = $('Detect and Redact Secrets').item.json;\nconst bs = String.fromCharCode(92);\nlet intent = ai.intent || 'other';\nlet riskLevel = ai.riskLevel || 'medium';\nlet priority = ai.priority || 'normal';\nlet requiresHuman = Boolean(ai.requiresHuman);\nlet reply = ai.customerFacingReply || 'မေးမြန်းမှုအတွက် ကျေးဇူးတင်ပါသည်။ အသေးစိတ်စစ်ဆေးရန် support ticket တစ်ခု ဖန်တီးထားပါသည်။';\nlet recommendedAction = ai.recommendedAction || 'Review support ticket';\nlet summary = ai.summary || 'Customer support request';\nlet confidence = Number(ai.confidence ?? 0);\nlet policyApplied = 'ai_response_burmese_training_style_with_memory';\nconst hasMyanmar = (text) => /[က-႟]/.test(String(text || ''));\nif (redaction.containsSecret) {\n  policyApplied = 'secret_shared_template_burmese_training_style';\n  riskLevel = 'high'; priority = 'urgent'; requiresHuman = true;\n  if (!intent || intent === 'other') intent = redaction.secretTypes.includes('otp') ? 'login_problem' : 'account_specific';\n  reply = 'လုံခြုံရေးအတွက် OTP၊ PIN၊ စကားဝှက်၊ ကတ်နံပါတ်အပြည့်အစုံနှင့် လုံခြုံရေးကုဒ်များကို chat ထဲတွင် မမျှဝေရပါ။ ဤ chat မှ အဆိုပါအချက်အလက်များကို စစ်ဆေးအသုံးပြု၍ မရပါ။ တရားဝင် mobile banking app သို့မဟုတ် official customer support channel မှတစ်ဆင့် ဆက်သွယ်ရပါမည်။ လုံခြုံစွာဆက်လက်ကူညီရန် support ticket ဖန်တီးထားပါသည်။';\n  recommendedAction = 'Escalate to secure support. Customer shared: ' + (redaction.secretTypes || 'secret') + '.';\n  summary = 'Customer shared sensitive information (' + (redaction.secretTypes || 'secret') + ') and requires secure support follow-up.';\n}\nelse if (redaction.preAiRiskHint === 'urgent_sensitive' || ['fraud_report', 'card_issue'].includes(intent)) {\n  policyApplied = 'urgent_sensitive_template_burmese_training_style';\n  riskLevel = 'high'; priority = 'urgent'; requiresHuman = true;\n  reply = 'ဤကိစ္စသည် လုံခြုံရေးဆိုင်ရာ အရေးပေါ်ကူညီမှု လိုအပ်နိုင်ပါသည်။ တရားဝင် mobile banking app သို့မဟုတ် ဘဏ်၏ official support number မှတစ်ဆင့် ချက်ချင်းဆက်သွယ်ရပါမည်။ ဤ chat မှ account သို့မဟုတ် card အခြေအနေကို ပြောင်းလဲပေး၍ မရပါ။ ဆက်လက်ကူညီရန် support ticket ဖန်တီးထားပါသည်။';\n  recommendedAction = 'Escalate urgently to the relevant secure support team.';\n}\nelse if (!hasMyanmar(reply)) {\n  policyApplied = 'burmese_training_style_fallback';\n  reply = 'မေးမြန်းမှုအတွက် ကျေးဇူးတင်ပါသည်။ အသေးစိတ်စစ်ဆေးရန် support ticket တစ်ခု ဖန်တီးထားပါသည်။ လိုအပ်ပါက တရားဝင် customer support channel မှတစ်ဆင့် ဆက်သွယ်ပေးပါမည်။';\n}\nconst cardPattern = new RegExp(bs + 'b(?:' + bs + 'd[ -]?){13,19}' + bs + 'b', 'g');\nconst shortNumberPattern = new RegExp(bs + 'b' + bs + 'd{4,8}' + bs + 'b', 'g');\nreply = String(reply).replace(cardPattern, '[REDACTED]').replace(shortNumberPattern, (m) => redaction.containsSecret ? '[REDACTED]' : m);\nreturn { json: { ...redaction, aiOutput: ai, intent, riskLevel, priority, requiresHuman, recommendedAction, summary, reply, confidence, policyApplied, responseLanguage: 'my-MM' } };"
+        "jsCode": "const raw = $json.output;\nlet ai = {};\nif (raw && typeof raw === 'object') ai = raw;\nif (typeof raw === 'string') {\n  const trimmed = raw.trim();\n  const fence = String.fromCharCode(96, 96, 96);\n  let clean = trimmed;\n  if (clean.toLowerCase().startsWith(fence + 'json')) clean = clean.slice(7);\n  else if (clean.startsWith(fence)) clean = clean.slice(3);\n  if (clean.endsWith(fence)) clean = clean.slice(0, -3);\n  try { ai = JSON.parse(clean.trim()); } catch { ai = { customerFacingReply: trimmed }; }\n}\nconst redaction = $('Detect and Redact Secrets').item.json;\nconst bs = String.fromCharCode(92);\nconst lang = redaction.responseLanguage || 'my-MM';\nconst isMyanmar = lang === 'my-MM';\nlet intent = ai.intent || 'other';\nlet riskLevel = ai.riskLevel || 'medium';\nlet priority = ai.priority || 'normal';\nlet requiresHuman = Boolean(ai.requiresHuman);\nlet recommendedAction = ai.recommendedAction || 'Review support ticket';\nlet summary = ai.summary || 'Customer support request';\nlet confidence = Number(ai.confidence ?? 0);\nlet reply = ai.customerFacingReply || (isMyanmar ? 'မေးမြန်းမှုအတွက် ကျေးဇူးတင်ပါသည်။ အသေးစိတ်စစ်ဆေးရန် support ticket တစ်ခု ဖန်တီးထားပါသည်။' : 'Thank you for your question. A support ticket has been created for review.');\nlet policyApplied = isMyanmar ? 'ai_response_burmese_training_style_with_memory' : 'ai_response_english_training_style_with_memory';\nconst hasMyanmar = (text) => /[က-႟]/.test(String(text || ''));\nconst hasLatin = (text) => /[A-Za-z]/.test(String(text || ''));\nif (redaction.containsSecret) {\n  policyApplied = isMyanmar ? 'secret_shared_template_burmese_training_style' : 'secret_shared_template_english_training_style';\n  riskLevel = 'high';\n  priority = 'urgent';\n  requiresHuman = true;\n  if (!intent || intent === 'other') intent = String(redaction.secretTypes || '').includes('otp') ? 'login_problem' : 'account_specific';\n  reply = isMyanmar\n    ? 'လုံခြုံရေးအတွက် OTP၊ PIN၊ စကားဝှက်၊ ကတ်နံပါတ်အပြည့်အစုံနှင့် လုံခြုံရေးကုဒ်များကို chat ထဲတွင် မမျှဝေရပါ။ ဤ chat မှ အဆိုပါအချက်အလက်များကို စစ်ဆေးအသုံးပြု၍ မရပါ။ တရားဝင် mobile banking app သို့မဟုတ် official customer support channel မှတစ်ဆင့် ဆက်သွယ်ရပါမည်။ လုံခြုံစွာဆက်လက်ကူညီရန် support ticket ဖန်တီးထားပါသည်။'\n    : 'For security, do not share OTPs, PINs, passwords, full card numbers, or security codes in chat. These details cannot be processed here. Please use the official banking app or official customer support channel; a support ticket has been created for secure follow-up.';\n  recommendedAction = 'Escalate to secure support. Customer shared: ' + (redaction.secretTypes || 'secret') + '.';\n  summary = 'Customer shared sensitive information (' + (redaction.secretTypes || 'secret') + ') and requires secure support follow-up.';\n}\nelse if (redaction.preAiRiskHint === 'urgent_sensitive' || ['fraud_report', 'card_issue'].includes(intent)) {\n  policyApplied = isMyanmar ? 'urgent_sensitive_template_burmese_training_style' : 'urgent_sensitive_template_english_training_style';\n  riskLevel = 'high';\n  priority = 'urgent';\n  requiresHuman = true;\n  reply = isMyanmar\n    ? 'ဤကိစ္စသည် လုံခြုံရေးဆိုင်ရာ အရေးပေါ်ကူညီမှု လိုအပ်နိုင်ပါသည်။ တရားဝင် mobile banking app သို့မဟုတ် ဘဏ်၏ official support number မှတစ်ဆင့် ချက်ချင်းဆက်သွယ်ရပါမည်။ ဤ chat မှ account သို့မဟုတ် card အခြေအနေကို ပြောင်းလဲပေး၍ မရပါ။ ဆက်လက်ကူညီရန် support ticket ဖန်တီးထားပါသည်။'\n    : 'This may require urgent security support. Please contact the bank through the official mobile banking app or official support number immediately. This chat cannot change account or card status; a support ticket has been created for follow-up.';\n  recommendedAction = 'Escalate urgently to the relevant secure support team.';\n}\nelse if (isMyanmar && !hasMyanmar(reply)) {\n  policyApplied = 'burmese_training_style_fallback';\n  reply = 'မေးမြန်းမှုအတွက် ကျေးဇူးတင်ပါသည်။ အသေးစိတ်စစ်ဆေးရန် support ticket တစ်ခု ဖန်တီးထားပါသည်။ လိုအပ်ပါက တရားဝင် customer support channel မှတစ်ဆင့် ဆက်သွယ်ပေးပါမည်။';\n}\nelse if (!isMyanmar && hasMyanmar(reply) && !hasLatin(reply)) {\n  policyApplied = 'english_training_style_fallback';\n  reply = 'Thank you for your question. A support ticket has been created for review. If needed, support will follow up through an official customer support channel.';\n}\nconst cardPattern = new RegExp(bs + 'b(?:' + bs + 'd[ -]?){13,19}' + bs + 'b', 'g');\nconst shortNumberPattern = new RegExp(bs + 'b' + bs + 'd{4,8}' + bs + 'b', 'g');\nreply = String(reply).replace(cardPattern, '[REDACTED]').replace(shortNumberPattern, (m) => redaction.containsSecret ? '[REDACTED]' : m);\nreturn { json: { ...redaction, aiOutput: ai, intent, riskLevel, priority, requiresHuman, recommendedAction, summary, reply, confidence, policyApplied, responseLanguage: lang } };"
       },
-      "id": "2d0127c8-103e-4d12-b2d3-77be672bb5c3",
+      "id": "5b2de6e1-d516-472f-ab40-d34d45a17d74",
       "name": "Apply Final Safety Policy",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -312,7 +316,7 @@
         "includeOtherFields": true,
         "options": {}
       },
-      "id": "44740945-96c8-468d-b395-178d5443bd44",
+      "id": "35d0e79a-3c81-44b5-b136-b7179ed6b17a",
       "name": "Prepare V2 Ticket and Response",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
@@ -356,7 +360,7 @@
         },
         "options": {}
       },
-      "id": "74cdc6dd-1655-454f-8edd-686524419dd8",
+      "id": "ff548bda-6d7c-43f5-a6b5-1c0694e2e446",
       "name": "Log V2 Support Ticket",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
@@ -388,7 +392,7 @@
         },
         "options": {}
       },
-      "id": "540f6d0c-d50b-4c65-9e0e-6aeee3bb6b77",
+      "id": "ad765f95-4a15-48ec-ad9e-cbe662b640f3",
       "name": "Is Telegram Channel?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
@@ -406,7 +410,7 @@
           "reply_to_message_id": "={{ Number($(\"Prepare V2 Ticket and Response\").item.json.telegram_message_id || 0) }}"
         }
       },
-      "id": "704392ca-6fcc-4a11-8903-1020cf734bf8",
+      "id": "1f74255c-e1a2-4de6-87c0-8cb18a1ce67c",
       "name": "Send Telegram V2 Reply",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
@@ -414,7 +418,7 @@
         2368,
         80
       ],
-      "webhookId": "801e117a-d702-4d2e-bfde-4bf1fd23f023",
+      "webhookId": "f83c63f1-77e5-4161-947e-c655ac77403d",
       "credentials": {
         "telegramApi": {
           "id": "Bb0Xmmg7BvOgynts",
@@ -438,7 +442,7 @@
           }
         }
       },
-      "id": "80494b05-2ee8-4c2c-b22a-540912ca5937",
+      "id": "65fa2fb7-cce5-4c18-a38a-589b011ad16f",
       "name": "Return V2 Chat Response",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
@@ -449,26 +453,22 @@
     },
     {
       "parameters": {
-        "updates": [
-          "message"
-        ],
-        "additionalFields": {}
+        "httpMethod": "POST",
+        "path": "bank-support-chat-v2",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
       },
-      "id": "c54895a1-fedc-4118-bd55-3d15152d2dbe",
-      "name": "Telegram Chat Trigger V2",
-      "type": "n8n-nodes-base.telegramTrigger",
-      "typeVersion": 1.3,
+      "id": "34480dfb-a33f-4fbe-bcbf-8ff5e6885150",
+      "name": "Inbound Chat Webhook V2",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
       "position": [
         224,
-        80
+        304
       ],
-      "webhookId": "7d82fb11-49f0-4710-b3ed-4977ee5023d0",
-      "credentials": {
-        "telegramApi": {
-          "id": "Bb0Xmmg7BvOgynts",
-          "name": "Telegram account"
-        }
-      }
+      "webhookId": "06bae415-d1ab-43fe-89c3-fa78fe7e44c2"
     },
     {
       "parameters": {
@@ -477,43 +477,43 @@
             {
               "id": "session-id",
               "name": "sessionId",
-              "value": "={{ \"telegram_\" + ($json.message?.chat?.id ?? $execution.id) + \"_\" + ($json.message?.from?.id ?? \"user\") }}",
+              "value": "={{ $json.body?.sessionId ?? $json.sessionId ?? $execution.id }}",
               "type": "string"
             },
             {
               "id": "customer-name",
               "name": "customerName",
-              "value": "={{ (($json.message?.from?.first_name ?? \"\") + \" \" + ($json.message?.from?.last_name ?? \"\")).trim() || $json.message?.from?.username || \"Telegram Customer\" }}",
+              "value": "={{ $json.body?.customerName ?? $json.customerName ?? \"Customer\" }}",
               "type": "string"
             },
             {
               "id": "customer-email",
               "name": "customerEmail",
-              "value": "",
+              "value": "={{ $json.body?.customerEmail ?? $json.customerEmail ?? \"\" }}",
               "type": "string"
             },
             {
               "id": "channel",
               "name": "channel",
-              "value": "telegram",
+              "value": "={{ $json.body?.channel ?? $json.channel ?? \"web\" }}",
               "type": "string"
             },
             {
               "id": "message",
               "name": "message",
-              "value": "={{ $json.message?.text ?? \"\" }}",
+              "value": "={{ $json.body?.message ?? $json.message ?? \"\" }}",
               "type": "string"
             },
             {
               "id": "telegram-chat-id",
               "name": "telegramChatId",
-              "value": "={{ $json.message?.chat?.id ?? \"\" }}",
+              "value": "={{ $json.body?.telegramChatId ?? $json.telegramChatId ?? \"\" }}",
               "type": "string"
             },
             {
               "id": "telegram-message-id",
               "name": "telegramMessageId",
-              "value": "={{ $json.message?.message_id ?? \"\" }}",
+              "value": "={{ $json.body?.telegramMessageId ?? $json.telegramMessageId ?? \"\" }}",
               "type": "string"
             },
             {
@@ -527,30 +527,30 @@
         "includeOtherFields": true,
         "options": {}
       },
-      "id": "ef82e7bc-3535-4eb2-915f-8de8f231085c",
-      "name": "Normalize Telegram Input",
+      "id": "cd4ae6bd-aa3a-487d-a30a-e514c6630eaf",
+      "name": "Normalize Chat Input",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
         512,
-        80
+        304
       ]
     }
   ],
   "pinData": {},
   "connections": {
-    "Inbound Chat Webhook V2": {
+    "Telegram Chat Trigger V2": {
       "main": [
         [
           {
-            "node": "Normalize Chat Input",
+            "node": "Normalize Telegram Input",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Normalize Chat Input": {
+    "Normalize Telegram Input": {
       "main": [
         [
           {
@@ -656,18 +656,18 @@
         ]
       ]
     },
-    "Telegram Chat Trigger V2": {
+    "Inbound Chat Webhook V2": {
       "main": [
         [
           {
-            "node": "Normalize Telegram Input",
+            "node": "Normalize Chat Input",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Normalize Telegram Input": {
+    "Normalize Chat Input": {
       "main": [
         [
           {
@@ -679,13 +679,13 @@
       ]
     }
   },
-  "active": true,
+  "active": false,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate",
     "availableInMCP": true
   },
-  "versionId": "e12e47f1-8224-40bc-ab85-439fadd337ed",
+  "versionId": "f58b44f2-a2a3-4dde-b9fe-83226cfbf8c2",
   "meta": {
     "aiBuilderAssisted": true,
     "builderVariant": "mcp",
